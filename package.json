@@ -1,0 +1,39 @@
+{
+  "name": "async-read-lines",
+  "version": "0.0.1",
+  "description": "Library for asynchronous line-by-line reading from big text files.",
+  "homepage": "https://github.com/AlexAtNet/async-read-lines",
+  "main": "index.js",
+  "scripts": {
+    "test": "grunt test"
+  },
+  "keywords": [
+    "line",
+    "read",
+    "fs"
+  ],
+  "author": {
+    "name": "Alex Netkachov",
+    "email": "alex.netkachov@gmail.com",
+    "url": "http://alexatnet.com/"
+  },
+  "bugs": {
+    "url": "https://github.com/AlexAtNet/async-read-lines/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/AlexAtNet/async-read-lines.git"
+  },
+  "engines": [
+    "node"
+  ],
+  "license": "BSD-2-Clause",
+  "devDependencies": {
+    "grunt": "~0.4.2",
+    "grunt-contrib-jshint": "~0.8.0",
+    "jasmine-node": "~1.13.0"
+  },
+  "dependencies": {
+    "async": "~0.2.10"
+  }
+}
