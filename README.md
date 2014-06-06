@@ -1,7 +1,8 @@
 async-read-lines
 ================
 
-Library for asynchronous line-by-line reading from big text files.
+Library for asynchronous line-by-line reading from big text files. Ideal for
+iterating over the log file entries.
 
 Installation
 ------------
@@ -11,11 +12,15 @@ Installation
 Example
 -------
 
+How to count entries in the server access log file:
+
     var asyncReadLines = require('async-read-lines');
 
     var count = 0;
+
     asyncReadLines('access.log', function (line, callback) {
         count += 1;
+
         callback();
     }, function (err) {
         console.log(count);
