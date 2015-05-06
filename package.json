@@ -1,6 +1,6 @@
 {
   "name": "async-read-lines",
-  "version": "0.0.3",
+  "version": "0.1.0",
   "description": "Library for asynchronous line-by-line reading from big text files.",
   "homepage": "https://github.com/AlexAtNet/async-read-lines",
   "main": "index.js",
@@ -34,6 +34,5 @@
     "jasmine-node": "~1.13.0"
   },
   "dependencies": {
-    "async": "~0.2.10"
   }
 }

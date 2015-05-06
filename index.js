@@ -1,88 +1,115 @@
 'use strict';
 
-var async = require('async'),
-    fs = require('fs');
+var fs = require('fs'),
+  StringDecoder = require('string_decoder').StringDecoder;
 
-module.exports = function (file, options, lineCallback, endCallback) {
-    var length, encoding, lineTerminator;
+function createTextReader(file, options, done) {
+  var length, encoding, separator;
 
-    if ('function' === typeof options) {
-        endCallback = lineCallback;
-        lineCallback = options;
-        options = { };
+  length = 4 * 1024;
+  encoding = options.encoding || 'utf8';
+  separator = (options.separator || '\n');
+
+  fs.open(file, 'r', (err, fd) => {
+    var eof, tail, buffer, decoder, lines;
+
+    if (err) {
+      done(err);
+      return;
     }
 
-    length = 4 * 1024;
-    encoding = options.encoding || 'utf8';
-    lineTerminator = (options.lineTerminator || '\n').charCodeAt(0);
+    eof = false;
+    buffer = new Buffer(length);
+    tail = '';
+    lines = [];
 
-    fs.open(file, 'r', function (err, fd) {
-        var eof, tail, buffer;
+    decoder = new StringDecoder(encoding);
 
-        if (err) {
-            endCallback(err);
-            return;
-        }
-
-        eof = false;
-        buffer = new Buffer(length);
-        tail = null;
-        async.whilst(function () { return !eof; }, function (callback) {
+    done(null, {
+      readLine : done => {
+        var line;
+        if (lines.length > 0) {
+          line = lines.shift();
+          done(null, line);
+        } else if (eof) {
+          done(null, null);
+        } else {
+          (function read() {
             fs.read(fd, buffer, 0, length, null,
-                function (err, bytesRead, buffer) {
-                    var idx, offset, byte, lines, line;
+              function (err, bytesRead, buffer) {
+                var index, position;
 
-                    if (err) {
-                        callback(err);
-                        return;
-                    }
-
-                    if (0 === bytesRead) {
-                        eof = true;
-                        line = null === tail ? '' : tail.toString(encoding);
-                        lineCallback(line, callback);
-                        return;
-                    }
-
-                    lines = [ ];
-                    offset = 0;
-
-                    for (idx = 0; idx < bytesRead; idx += 1) {
-                        byte = buffer.readUInt8(idx);
-
-                        if (lineTerminator !== byte) {
-                            continue;
-                        }
-
-                        if (null === tail) {
-                            lines.push(buffer.toString(encoding, offset, idx));
-                        } else {
-                            lines.push(Buffer.concat([
-                                tail,
-                                buffer.slice(offset, idx)
-                            ]).toString(encoding));
-                            tail = null;
-                        }
-
-                        offset = idx + 1;
-                    }
-
-                    if (offset !== bytesRead) {
-                        if (null === tail) {
-                            tail = new Buffer(bytesRead - offset);
-                            buffer.copy(tail, 0, offset, bytesRead);
-                        } else {
-                            tail = Buffer.concat([ tail,
-                                buffer.slice(offset, bytesRead) ]);
-                        }
-                    }
-
-                    async.forEach(lines, lineCallback, callback);
-                });
-        }, function (err) {
-            fs.close(fd, function () {
-                endCallback(err || null);
-            });
+                if (bytesRead === 0) {
+                  eof = true;
+                  done(null, tail);
+                } else {
+                  tail = tail + decoder.write(buffer.slice(0, bytesRead));
+                  index = -1;
+                  while (-1 !== (position = tail.indexOf(separator, index))) {
+                    lines.push(tail.substring(index, position));
+                    index = position + separator.length;
+                  }
+                  tail = tail.substring(index);
+                  if (lines.length === 0) {
+                    read();
+                  } else {
+                    line = lines.shift();
+                    done(null, line);
+                  }
+                }
+              });
+          }());
+        }
+      },
+      close : done => {
+        fs.close(fd, () => {
+          if (done) {
+            done(err || null);
+          }
         });
+      }
     });
+  });
+}
+
+function asyncWhile(context, criteria, iteration, done) {
+  criteria.call(context, (err, value) => {
+    if (err) {
+      done.call(context, err);
+    } else {
+      if (value === undefined || value === null || value === false) {
+        done.call(context, null);
+      } else {
+        iteration.call(context, value, err => {
+          if (err) {
+            done.call(context, err);
+          } else {
+            setImmediate(() => asyncWhile(context, criteria, iteration, done));
+          }
+        });
+      }
+    }
+  });
+}
+
+module.exports = function (file, options, lineCallback, endCallback) {
+  if ('function' === typeof options) {
+    endCallback = lineCallback;
+    lineCallback = options;
+    options = { };
+  }
+  createTextReader(file, options, function (err, reader) {
+    if (err) {
+      endCallback(err);
+    } else {
+      asyncWhile(reader, done => this.readLine(done), lineCallback,
+        (err) => {
+          if (err) {
+            endCallback(err);
+          } else {
+            this.close(endCallback);
+          }
+        });
+    }
+  });
 };
